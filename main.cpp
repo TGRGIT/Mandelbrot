@@ -170,8 +170,17 @@ bool member(float cx, float cy, int& iterations)
 int main()
 {	
 	int hx, hy;
+	
+	__m128 hrexes  = _mm_set1_ps((float)HXRES);
+	//__m128 hreyes  = _mm_set1_ps((float)HYRES);
+
+        __m128 offsets = _mm_set1_ps(-0.5f);
+        __m128 pf = _mm_set1_ps(4.0f);
+	__m128 pxs = _mm_set1_ps(PX);
+        //__m128 pys = _mm_set1_ps(PY);
 
 	float m=1.0; /* initial  magnification		*/
+	__m128 ms = _mm_set1_ps(m);
 
 	/* Create a screen to render to */
 	Screen *screen;
@@ -190,26 +199,69 @@ int main()
 	        /* record starting time */
 	        gettimeofday(&start_time, NULL);
 #endif
+		__m128 rlf  = _mm_div_ps(pf, ms);
+		__m128 lfr  = _mm_div_ps(pxs, rlf);
+                #pragma omp parallel for schedule(dynamic, 20)
 		for (hy=0; hy<HYRES; hy++) {
-			for (hx=0; hx<HXRES; hx++) {
+			float cy = ((((float)hy/(float)HYRES) -0.5 + (PY/(4.0/m)))*(4.0f/m));
+                        for (hx=0; hx<HXRES; hx+=4) {
 				int iterations;
 
 				/* 
 				 * Translate pixel coordinates to complex plane coordinates centred
 				 * on PX, PY
 				 */
-				float cx = ((((float)hx/(float)HXRES) -0.5 + (PX/(4.0/m)))*(4.0f/m));
-				float cy = ((((float)hy/(float)HYRES) -0.5 + (PY/(4.0/m)))*(4.0f/m));
+				float results[4];
 
-				if (!member(cx, cy, iterations)) {
-					/* Point is not a member, colour based on number of iterations before escape */
+				__m128 hxs = _mm_setr_ps((float)hx,(float)hx+1,(float)hx+2,(float)hx+3);
+				hxs = _mm_div_ps(hxs, hrexes);
+			  	hxs = _mm_add_ps(hxs,offsets);	
+				hxs = _mm_add_ps(hxs, lfr);
+				hxs = _mm_mul_ps(hxs, rlf);
+
+
+				_mm_store_ps(&results[0], hxs);
+
+				#pragma omp parallel sections 
+				{
+				#pragma omp section 
+				if (!member(results[0], cy, iterations)) {
 					int i=(iterations%40) - 1;
 					int b = i*3;
 					screen->putpixel(hx, hy, pal[b], pal[b+1], pal[b+2]);
 				} else {
-					/* Point is a member, colour it black */
+
 					screen->putpixel(hx, hy, 0, 0, 0);
 				}
+			
+				#pragma omp section 
+				if (!member(results[1], cy, iterations)) {
+					int i=(iterations%40) - 1;
+					int b = i*3;
+					screen->putpixel(hx+1, hy, pal[b], pal[b+1], pal[b+2]);
+				} else {
+
+					screen->putpixel(hx+1, hy, 0, 0, 0);
+				}
+				#pragma omp section 
+				if (!member(results[2], cy, iterations)) {
+					int i=(iterations%40) - 1;
+					int b = i*3;
+					screen->putpixel(hx+2, hy, pal[b], pal[b+1], pal[b+2]);
+				} else {
+
+					screen->putpixel(hx+2, hy, 0, 0, 0);
+				}
+				#pragma omp section 
+				if (!member(results[3], cy, iterations)) {
+					int i=(iterations%40) - 1;
+					int b = i*3;
+					screen->putpixel(hx+3, hy, pal[b], pal[b+1], pal[b+2]);
+				} else {
+
+					screen->putpixel(hx+3, hy, 0, 0, 0);
+				}
+				}//pragma omp sections
 			}
 		}
 #ifdef TIMING
@@ -222,6 +274,7 @@ int main()
 
 		/* Zoom in */
 		m *= ZOOM_FACTOR;
+		ms = _mm_set1_ps(m);
 	}
 	
 	sleep(10);
@@ -229,6 +282,5 @@ int main()
 	std::cout << "Total executing time " << total_time << " microseconds\n";
 #endif
 	std::cout << "Clean Exit"<< std::endl;
-
 
 }

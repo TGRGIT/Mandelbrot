@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-O3 -fopenmp -c -Wall -ansi
+CFLAGS=-O -fopenmp -c -Wall -ansi
 LDFLAGS=-fopenmp
 SOURCES=main.cpp Screen.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
