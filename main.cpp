@@ -269,7 +269,7 @@ int main()
 		total_time += (stop_time.tv_sec - start_time.tv_sec) * 1000000L + (stop_time.tv_usec - start_time.tv_usec);
 #endif
 		/* Show the rendered image on the screen */
-		//screen->flip();
+		screen->flip();
 		std::cout << "Render done " << depth++ << " " << m << std::endl;
 
 		/* Zoom in */
